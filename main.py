@@ -71,13 +71,13 @@ async def analyze_funko(
     catalog_future = loop.run_in_executor(_executor, resolve_funko, name)
 
     # ── Step 2: build scraper search string ──
-    # We kick off scrapers immediately with the raw query; once catalog resolves
-    # we use the canonical title for any remaining queries. Since scrapers are I/O
-    # bound and catalog lookup is fast, they effectively race and we get both.
+    reddit_configured = bool(os.getenv("REDDIT_CLIENT_ID"))
+    default_sources = {"reddit", "amazon", "web", "hobbydb", "ppg", "ee"} if reddit_configured \
+                      else {"amazon", "web", "hobbydb", "ppg", "ee"}
     requested = (
         set(sources.lower().split(","))
         if sources != "all"
-        else {"reddit", "amazon", "web", "hobbydb", "ppg", "ee"}
+        else default_sources
     )
 
     scraper_tasks = {}
@@ -121,7 +121,7 @@ async def analyze_funko(
     if not all_reviews:
         raise HTTPException(
             status_code=404,
-            detail=f"No reviews found for '{resolved_query}'. Try a different name or check your Reddit API credentials.",
+            detail=f"No reviews found for '{resolved_query}'. Try a broader search term, e.g. just the character name without 'Pop!'.",
         )
 
     all_reviews.sort(key=lambda r: r.get("date", ""), reverse=True)
